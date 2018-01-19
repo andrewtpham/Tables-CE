@@ -1,7 +1,7 @@
 Tola Tables [![Build Status](https://travis-ci.org/toladata/TolaTables.svg?branch=master)](https://travis-ci.org/toladata/TolaTables)
 ====
 
-Share, load, edit and display data from various mobile data collection platforms.
+Share, edit and display data from various mobile data collection platforms.
 The data itself is stored in MongoDB but metadata and dashboarding is done through
 Django and a relational database.  The Silo app provides most of the functionality.
 It stores data source and destination locations, manages the data import process,
@@ -20,6 +20,12 @@ Location of settings:
 * Development: `tola/settings/dev.py`
 * Test runner: `tola/settings/test.py`
 * Staging/Production: `tola/settings/local.py`
+* Login Configuration: `templates/login_types.html`
+
+Settings in the local.py file can be overridden using the file local_secret.py.
+If you would prefer to use a local login page, you can configure which
+authentication services are available by modifying login_types_example.html and
+changing its name to login_types.html.
 
 
 ## Deploy locally via Docker
@@ -36,6 +42,8 @@ To run the webserver:
 docker-compose -f docker-compose-dev.yml up #-d for detached
 ```
 
+Go to http://localhost:8000/login
+
 User: `admin`
 Password: `admin`.
 
@@ -43,6 +51,12 @@ To run the tests:
 
 ```bash
 docker-compose -f docker-compose-dev.yml run --entrypoint '/usr/bin/env' --rm tables python manage.py test
+```
+
+To run the webserver with pdb support:
+
+```bash
+docker-compose -f docker-compose-dev.yml run --rm --service-ports tables
 ```
 
 To run bash:

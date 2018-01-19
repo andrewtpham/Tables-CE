@@ -16,11 +16,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='tolauser',
             name='tola_user_uuid',
-            field=models.CharField(default=uuid.uuid4, max_length=255, unique=True, verbose_name=b'TolaUser UUID'),
+            field=models.CharField(default=uuid.uuid4, max_length=255, null=True, verbose_name=b'TolaUser UUID'),
         ),
         migrations.AddField(
             model_name='organization',
             name='organization_uuid',
-            field=models.CharField(default=uuid.uuid4, max_length=255, unique=True, verbose_name=b'Organization UUID'),
+            field=models.CharField(default=uuid.uuid4, max_length=255, null=True, verbose_name=b'Organization UUID'),
         ),
     ]

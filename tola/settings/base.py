@@ -149,6 +149,8 @@ TEMPLATES = [
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
                 'tola.context_processors.get_silos',
+                'tola.context_processors.google_oauth_settings',
+                'tola.context_processors.google_analytics',
             ],
             'builtins': [
                 'django.contrib.staticfiles.templatetags.staticfiles',
@@ -258,13 +260,12 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
     'social_core.pipeline.social_auth.social_uid',
     'social_core.pipeline.social_auth.social_user',
-    'social_core.pipeline.user.get_username',
-    'social_core.pipeline.user.create_user',
+    'tola.auth_pipeline.get_or_create_user',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
     'social_core.pipeline.social_auth.associate_by_email',
-    'tola.util.user_to_tola',
+    'tola.auth_pipeline.user_to_tola',
 )
 
 ############ END OF AUTHENTICATION BACKEND ##############
