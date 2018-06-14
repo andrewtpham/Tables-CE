@@ -6,7 +6,7 @@ from requests.auth import HTTPDigestAuth
 from django.http import HttpResponseRedirect, HttpResponseBadRequest, HttpResponse
 
 
-from tola.util import saveDataToSilo, getSiloColumnNames
+from tola.util import getSiloColumnNames
 from django.shortcuts import redirect, render
 from django.core.urlresolvers import reverse, reverse_lazy
 
@@ -103,7 +103,7 @@ def getCommCareAuth(request):
                     messages.add_message(request,ret[0],ret[1])
                     #need to impliment if import faluire
                     cols = ret[2]
-                    return HttpResponseRedirect(reverse_lazy("siloDetail", kwargs={'silo_id' : silo.id}))
+                    return HttpResponseRedirect(reverse_lazy("silo_detail", kwargs={'silo_id' : silo.id}))
 
                 else:
                     messages.error(request, "A %s error has occured: %s " % (response.status_code, response.text))
@@ -185,7 +185,7 @@ def getCommCareFormPass(request):
                 #need to impliment if import faluire
                 messages.add_message(request,ret[0],ret[1])
                 cols = ret[2]
-                return HttpResponseRedirect(reverse_lazy("siloDetail", kwargs={'silo_id' : silo.id}))
+                return HttpResponseRedirect(reverse_lazy("silo_detail", kwargs={'silo_id' : silo.id}))
 
             else:
                 messages.error(request, "A %s error has occured: %s " % (response.status_code, response.text))

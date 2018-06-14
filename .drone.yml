@@ -1,18 +1,19 @@
 ---
 pipeline:
   mongo-setup:
-    image: mongo:3.0
+    image: mongo:3.4.10
     commands:
       - sleep 15
       - 'mongo --host mongo --eval "db.getSiblingDB(''test'').createUser({user:''test'', pwd:''test'', roles:[{role:''dbOwner'', db:''test''}]});"'
 
-  build:
+  test:
     image: python:${PYTHON_VERSION}
     environment:
       - TOLATABLES_MONGODB_HOST=mongo
+      - CELERY_BROKER_URL=redis://redis@redis:6379/0
     secrets: [SECRET_PASS]
     commands:
-      - pip install -r requirements-ci.txt
+      - pip install -r requirements/ci.txt
       - python manage.py test
     when:
       event: [push, tag]
@@ -28,22 +29,22 @@ pipeline:
     secrets: [DOCKER_USERNAME, DOCKER_PASSWORD]
     when:
       event: [push, tag]
-      branches: [master, dev-v2]
+      branch: [master, demo, staging, dev-v2]
       status: [success]
 
   trigger-deployment:
     image: quay.io/ukhomeofficedigital/drone-trigger:latest
     verbose: true
-    drone_server: http://drone.tola.io
+    drone_server: http://drone.humanitec.io
     drone_token: $DRONE_TOKEN
     secrets: [DRONE_TOKEN]
-    repo: toladata/deployment
+    repo: Humanitec/deployment
     branch: master
     deploy_to: marathon
     params: "APP_ID=/tolatables,APP_GROUP=toladata,APP_NAME=TolaTables,APP_BRANCH=${DRONE_COMMIT_BRANCH},APP_COMMIT=${DRONE_COMMIT_SHA},APP_TAG=${DRONE_TAG},APP_IMAGE=registry.tola.io/toladata/tolatables:${DRONE_COMMIT_SHA}"
     when:
       event: [push, tag]
-      branches: [master, dev-v2]
+      branch: [master, demo, staging, dev-v2]
       status: [success]
 
   notify:
@@ -54,11 +55,13 @@ pipeline:
     when:
       status: [failure]
       event: [push, tag]
-      branches: [master, dev-v2]
+      branch: [master, demo, staging, dev-v2]
 
 services:
   mongo:
     image: mongo:3.4.10
+  redis:
+    image: redis:4.0
 
 matrix:
   PYTHON_VERSION:

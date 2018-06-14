@@ -20,6 +20,7 @@ SITE_NAME = basename(DJANGO_ROOT)
 path.append(DJANGO_ROOT)
 ########## END PATH CONFIGURATION
 
+SECRET_KEY = os.getenv('SECRET_KEY', '!0^+)=t*ly6ycprf9@adsfsdfdfsdff#pa*3333*lp5k9ko7')
 
 ########## DEBUG CONFIGURATION
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#debug
@@ -33,6 +34,8 @@ DEBUG = False
 ADMINS = (
     ('Your Name', 'your_email@example.com'),
 )
+
+NOTIFICATION_SENDER = os.getenv('NOTIFICATION_SENDER')
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
@@ -110,12 +113,6 @@ STATICFILES_FINDERS = (
 ########## END STATIC FILE CONFIGURATION
 
 
-########## SECRET CONFIGURATION
-# See: https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-
-########## END SECRET CONFIGURATION
-
-
 ########## SITE CONFIGURATION
 # Hosts/domain names that are valid for this site
 # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
@@ -136,8 +133,7 @@ FIXTURE_DIRS = (
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [normpath(join(SITE_ROOT, 'templates')),],
-        #'APP_DIRS': True,
+        'DIRS': [normpath(join(SITE_ROOT, 'templates')), ],
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -168,7 +164,7 @@ TEMPLATES = [
 
 ########## MIDDLEWARE CONFIGURATION
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#middleware-classes
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     # Default Django middleware.
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -189,10 +185,6 @@ MIDDLEWARE_CLASSES = (
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf
 ROOT_URLCONF = '%s.urls' % SITE_NAME
 ########## END URL CONFIGURATION
-
-# Email setup
-EMAIL_HOST = 'localhost'
-EMAIL_PORT = 25
 
 
 ########## APP CONFIGURATION
@@ -231,7 +223,6 @@ LOCAL_APPS = (
     'tola',
 )
 DATASOURCE_APPS = (
-    'commcare',
     'fileuploadjson',
 )
 
@@ -239,14 +230,7 @@ DATASOURCE_APPS = (
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + DATASOURCE_APPS
 ########## END APP CONFIGURATION
 
-"""
-Allowed for now from everyone
-CORS_ORIGIN_WHITELIST = (
-    "localhost:8000",
-    "localhost:4200"
-)
-"""
-CORS_ORIGIN_ALLOW_ALL=True
+CORS_ORIGIN_ALLOW_ALL = True
 
 ####### AUTHENTICATION BAKEND CONFIG ##################
 # https://github.com/django/django/blob/master/django/contrib/auth/backends.py
@@ -273,11 +257,11 @@ SOCIAL_AUTH_PIPELINE = (
 ########## Login redirect ###########
 LOGIN_REDIRECT_URL = '/'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/'
+LOGIN_URL = '/login/tola'
 
 ########## LOGGING CONFIGURATION
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#logging
 
-import os
 PROJECT_PATH = dirname(dirname(dirname(abspath(__file__))))
 path.append(PROJECT_PATH)
 
@@ -289,9 +273,16 @@ LOGGING = {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
             'filename': 'error.log',
+            'formatter': 'verbose',
         },
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'
         },
     },
     'loggers': {
@@ -304,6 +295,7 @@ LOGGING = {
             'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': True,
+
         },
         'tola': {
             'handlers': ['file', 'console'],
@@ -347,7 +339,7 @@ MESSAGE_TAGS = {message.DEBUG: 'debug',
                 message.INFO: 'info',
                 message.SUCCESS: 'success',
                 message.WARNING: 'warning',
-                message.ERROR: 'danger',}
+                message.ERROR: 'danger'}
 
 
 GOOGLE_REDIRECT_URL = 'http://localhost:8000/oauth2callback/'

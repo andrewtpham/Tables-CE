@@ -2,13 +2,11 @@ import random
 
 from django.utils import timezone
 
-from factory import DjangoModelFactory, LazyAttribute, SubFactory, \
-    post_generation
-
 from factory import (DjangoModelFactory, LazyAttribute, SubFactory,
                      post_generation, Iterator)
 
 from silo.models import (
+    CeleryTask as CeleryTaskM,
     Country as CountryM,
     LabelValueStore as LabelValueStoreM,
     Organization as OrganizationM,
@@ -16,9 +14,11 @@ from silo.models import (
     ReadType as ReadTypeM,
     Silo as SiloM,
     Tag as TagM,
+    ThirdPartyTokens as ThirdPartyTokensM,
     TolaSites as TolaSitesM,
     TolaUser as TolaUserM,
-    WorkflowLevel1 as WorkflowLevel1M,
+    UniqueFields as UniqueFieldsM,
+    WorkflowLevel1 as WorkflowLevel1M
 )
 from .user_models import User
 
@@ -26,6 +26,7 @@ from .user_models import User
 class Country(DjangoModelFactory):
     class Meta:
         model = CountryM
+        django_get_or_create = ('country', 'code')
 
     country = 'Afghanistan'
     code = 'AF'
@@ -61,7 +62,8 @@ class ReadType(DjangoModelFactory):
         model = ReadTypeM
         django_get_or_create = ('read_type',)
 
-    read_type = Iterator(['CustomForm', 'OneDrive', 'CommCare', 'JSON'])
+    read_type = Iterator(['CustomForm', 'OneDrive', 'CommCare', 'JSON',
+                          'GSheet Import', 'CSV', 'ONA'])
 
 
 class Read(DjangoModelFactory):
@@ -75,6 +77,7 @@ class Read(DjangoModelFactory):
 class TolaSites(DjangoModelFactory):
     class Meta:
         model = TolaSitesM
+        django_get_or_create = ('name', 'site_id')
 
     name = 'Track'
     site_id = '1'
@@ -164,8 +167,33 @@ class Silo(DjangoModelFactory):
                 self.formulacolumns.add(formulacolumns)
 
 
+class UniqueFields(DjangoModelFactory):
+    class Meta:
+        model = UniqueFieldsM
+
+    name = 'Test'
+    silo = SubFactory(Silo)
+
+
 class LabelValueStore(DjangoModelFactory):
     class Meta:
         model = LabelValueStoreM
 
     create_date = timezone.now()
+
+
+class ThirdPartyTokens(DjangoModelFactory):
+    class Meta:
+        model = ThirdPartyTokensM
+
+    user = SubFactory(User)
+    token = str(random.randint(1, 9999))
+
+
+class CeleryTask(DjangoModelFactory):
+    class Meta:
+        model = CeleryTaskM
+
+    task_id = str(random.randint(1, 9999))
+    task_status = CeleryTaskM.TASK_CREATED
+
