@@ -1,12 +1,16 @@
 from django.core.urlresolvers import reverse_lazy
+from django.forms import ModelForm
 from silo.models import Silo, Read
+#import floppyforms as forms
 from django import forms
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Submit, Reset, Field, Hidden
+from crispy_forms.layout import Layout, Div, Submit, Reset, HTML, Button, Row, Field, Hidden
+from crispy_forms.bootstrap import FormActions
+from django.forms.formsets import formset_factory
 from collections import OrderedDict
 
-from silo.models import Silo, WorkflowLevel1
-from tola.activity_proxy import get_by_url, get_workflowteams
+from tola.util import getColToTypeDict
+from silo.models import Silo
 
 
 class OnaLoginForm(forms.Form):
@@ -26,24 +30,8 @@ class OnaLoginForm(forms.Form):
 
 
 class SiloForm(forms.ModelForm):
-    def __init__(self, user=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(SiloForm, self).__init__(*args, **kwargs)
-        # Filter programs based on the program teams from Activity
-        if user:
-            params = {
-                'workflow_user__tola_user_uuid': user.tola_user.tola_user_uuid
-            }
-            wfteams = get_workflowteams(**params)
-            wfl1_uuids = []
-            for wfteam in wfteams:
-                if wfteam['workflowlevel1']:
-                    wfl1_url = wfteam['workflowlevel1']
-                    wfl1 = get_by_url(wfl1_url)
-                    if wfl1:
-                        wfl1_uuids.append(wfl1['level1_uuid'])
-
-            self.fields['workflowlevel1'].queryset = WorkflowLevel1.objects.\
-                filter(level1_uuid__in=wfl1_uuids)
 
         # If you pass FormHelper constructor a form instance
         # It builds a default layout with all its fields
@@ -51,11 +39,9 @@ class SiloForm(forms.ModelForm):
 
         # Append the read_id for edits and save button
         self.helper.layout.append(Submit('save', 'save'))
-
     class Meta:
         model = Silo
-        fields = ['id', 'name', 'description', 'tags', 'shared', 'owner',
-                  'workflowlevel1']
+        fields = ['id', 'name', 'description', 'tags', 'shared', 'owner', 'workflowlevel1']
 
 
 class NewColumnForm(forms.Form):
@@ -80,33 +66,23 @@ class NewColumnForm(forms.Form):
         )
         super(NewColumnForm, self).__init__(*args, **kwargs)
 
-
 def get_read_form(excluded_fields):
     class ReadForm(forms.ModelForm):
-        onedrive_access_token = forms.CharField(required=False,
-                                                widget=forms.HiddenInput())
-
         def __init__(self, *args, **kwargs):
+            #exclude_list=kwargs.pop('exclude_list', '')
             super(ReadForm, self).__init__(*args, **kwargs)
             self.helper = FormHelper(self)
             self.helper.layout.append(Hidden('read_id', '{{read_id}}'))
             self.helper.layout.append(Submit('save', 'save'))
-            if 'onedrive_file' not in excluded_fields:
-                self.fields['onedrive_file'].required = True
-                self.fields['onedrive_access_token'].required = True
-
+            #self.fields['type'].widget.attrs['disabled'] = True
         class Meta:
             model = Read
             exclude = excluded_fields
             widgets = {
                 'owner': forms.HiddenInput(),
                 'type': forms.HiddenInput(),
-                'onedrive_file': forms.HiddenInput(),
-                'password': forms.PasswordInput(),
-            }
-
+                'password': forms.PasswordInput(),}
     return ReadForm
-
 
 class UploadForm(forms.Form):
     def __init__(self, *args, **kwargs):
@@ -129,8 +105,7 @@ class EditColumnForm(forms.Form):
     """
     A form that saves a document from mongodb
     """
-    id = forms.CharField(required=False, max_length=24,
-                         widget=forms.HiddenInput())
+    id = forms.CharField(required=False, max_length=24, widget=forms.HiddenInput())
     silo_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
 
     def __init__(self, *args, **kwargs):
@@ -146,21 +121,16 @@ class EditColumnForm(forms.Form):
         super(EditColumnForm, self).__init__(*args, **kwargs)
 
         for item in extra:
-            if (item != "_id" and item != "silo_id" and item != "edit_date"
-                    and item != "create_date" and item != "read_id"):
-                self.fields[item] = forms.CharField(
-                    label=item, initial=item, required=False,widget="")
-                self.fields[item + "_delete"] = forms.BooleanField(
-                    label="delete " + item, initial=False, required=False,
-                    widget="")
+            if item != "_id" and item != "silo_id" and item != "edit_date" and item != "create_date" and item != "read_id":
+                self.fields[item] = forms.CharField(label=item, initial=item, required=False,widget="")
+                self.fields[item + "_delete"] = forms.BooleanField(label="delete " + item, initial=False, required=False,widget="")
 
 
 class MongoEditForm(forms.Form):
     """
     A form that saves a document from mongodb
     """
-    id = forms.CharField(required=False, max_length=24,
-                         widget=forms.HiddenInput())
+    id = forms.CharField(required=False, max_length=24, widget=forms.HiddenInput())
     silo_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
 
     def __init__(self, *args, **kwargs):
@@ -175,13 +145,21 @@ class MongoEditForm(forms.Form):
         super(MongoEditForm, self).__init__(*args, **kwargs)
 
         extra = OrderedDict(sorted(extra.iteritems()))
-        # column_types = getColToTypeDict(Silo.objects.get(pk=silo_pk))
+        #column_types = getColToTypeDict(Silo.objects.get(pk=silo_pk))
 
         for item in extra:
             if item == "edit_date" or item == "create_date":
-                self.fields[item] = forms.CharField(
-                    label=item, initial=extra[item], required=False,
-                    widget=forms.TextInput(attrs={'readonly': "readonly"}))
-            elif item != "_id" and item != "silo_id" and item != "read_id":
-                self.fields[item] = forms.CharField(
-                    label=item, initial=extra[item], required=False)
+                self.fields[item] = forms.CharField(label = item, initial=extra[item], required=False, widget=forms.TextInput(attrs={'readonly': "readonly"}))
+            elif item != "_id" and item != "silo_id" and item!= "read_id":
+                self.fields[item] = forms.CharField(label = item, initial=extra[item], required=False)
+                """
+                column_type = column_types.get(item,'string')
+                if column_type=='string':
+                    self.fields[item] = forms.CharField(label = item, initial=extra[item], required=False)
+                elif column_type=='int':
+                    self.fields[item] = forms.IntegerField(label = item, initial=extra[item], required=False)
+                elif column_type=='double':
+                    self.fields[item] = forms.FloatField(label = item, initial=extra[item], required=False)
+                """
+
+
