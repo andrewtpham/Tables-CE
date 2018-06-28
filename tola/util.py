@@ -2,9 +2,7 @@ import urllib2
 import json
 import base64
 import requests
-import cgi
 from collections import OrderedDict
-from bson import ObjectId
 import logging
 from django.utils import timezone
 from django.utils.encoding import smart_str
@@ -18,13 +16,6 @@ from collections import deque
 
 
 logger = logging.getLogger("tola")
-
-
-class JSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, ObjectId):
-            return {u'$oid': str(o)}
-        return json.JSONEncoder.default(self, o)
 
 
 def mean(lst):
@@ -63,7 +54,7 @@ def parseMathInstruction(operation):
         raise TypeError(operation)
 
 
-def save_data_to_silo(silo, data, read=-1, user=None):
+def saveDataToSilo(silo, data, read=-1, user=None):
     """
     This saves data to the silo
 
@@ -71,27 +62,25 @@ def save_data_to_silo(silo, data, read=-1, user=None):
     silo -- the silo object, which is meta data for its labe_value_store
     data -- a python list of dictionaries. stored in MONGODB
     read -- the read object, optional only for backwards compatability
-    user -- an optional parameter to use if its necessary to retrieve
-            from ThirdPartyTokens
+    user -- an optional parameter to use if its necessary to retrieve from ThirdPartyTokens
     """
     try:
         if read.type.read_type == "ONA" and user:
             saveOnaDataToSilo(silo, data, read, user)
         read_source_id = read.id
-    except AttributeError:
+    except AttributeError as e:
         read_source_id = read
     unique_fields = silo.unique_fields.all()
     skipped_rows = set()
-    counter = 0
     keys = []
     try:
         keys = data.fieldnames
         keys = [cleanKey(key) for key in keys]
-    except AttributeError as e:
-        logger.warning(e)
-
+    except AttributeError:
+        pass
+    fieldToType = getColToTypeDict(silo)
     for counter, row in enumerate(data):
-        # resetting filter_criteria for each row
+        # reseting filter_criteria for each row
         filter_criteria = {}
         for uf in unique_fields:
             try:
@@ -107,19 +96,23 @@ def save_data_to_silo(silo, data, read=-1, user=None):
         # document instead of updating an existing one.
         if filter_criteria:
             filter_criteria.update({'silo_id': silo.id})
+            # else:
+            #     filter_criteria.update({"nonexistentkey":"NEVER0101010101010NEVER"})
 
             try:
                 lvs = LabelValueStore.objects.get(**filter_criteria)
+                #print("updating")
                 setattr(lvs, "edit_date", timezone.now())
                 lvs.read_id = read_source_id
-            except LabelValueStore.DoesNotExist:
+            except LabelValueStore.DoesNotExist as e:
                 lvs = LabelValueStore()
                 lvs.silo_id = silo.pk
                 lvs.create_date = timezone.now()
                 lvs.read_id = read_source_id
-            except LabelValueStore.MultipleObjectsReturned:
-                for k, v in filter_criteria.iteritems():
-                    skipped_rows.add("{}={}".format(str(k), str(v)))
+            except LabelValueStore.MultipleObjectsReturned as e:
+                for k,v in filter_criteria.iteritems():
+                    skipped_rows.add("%s=%s" % (str(k),str(v)))
+                #print("skipping")
                 continue
         else:
             lvs = LabelValueStore()
@@ -128,43 +121,63 @@ def save_data_to_silo(silo, data, read=-1, user=None):
             lvs.create_date = timezone.now()
             lvs.read_id = read_source_id
 
-        row = clean_data_obj(row)
+        counter = 0
+
+        row = cleanDataObj(row, silo)
 
         for key, val in row.iteritems():
+            # if key == "" or key is None or key == "silo_id": continue
+            # elif key == "id" or key == "_id": key = "user_assigned_id"
+            # elif key == "edit_date": key = "editted_date"
+            # elif key == "create_date": key = "created_date"
+            # if type(val) == str or type(val) == unicode:
+            #     val = smart_str(val, strings_only=True).strip()
+            # if fieldToType.get(key, 'string') == 'int':
+            #     try:
+            #         val = int(val)
+            #     except ValueError as e:
+            #         continue
+            # if fieldToType.get(key, 'string') == 'double':
+            #     try:
+            #         val = float(val)
+            #     except ValueError as e:
+            #         continue
+
             if not isinstance(key, tuple):
                 if key not in keys:
                     keys.append(key)
                 setattr(lvs, key, val)
 
         counter += 1
-        lvs = calculateFormulaCell(lvs, silo)
+        lvs = calculateFormulaCell(lvs,silo)
         lvs.save()
-
     addColsToSilo(silo, keys)
     res = {"skipped_rows": skipped_rows, "num_rows": counter}
     return res
 
 
-def clean_data_obj(obj):
-    """
-    Clean the data object given in the call. It casts the values to the right
-    type to be stored in the database.
-    :param obj: dict | list | string
-    :return: dict
-    """
-    if not isinstance(obj, (dict, list, OrderedDict)):
 
-        try:
-            obj = json.loads(obj)
-        except (ValueError, TypeError):
-            if isinstance(obj, str) or isinstance(obj, unicode):
-                obj = cgi.escape(obj)
+def cleanDataObj(obj, silo):
+    if not isinstance(obj, (dict, list, OrderedDict)):
+        fieldToType = getColToTypeDict(silo)
+        if type(obj) == str or type(obj) == unicode:
+            obj = smart_str(obj, strings_only=True).strip()
+        if fieldToType.get(obj, 'string') == 'int':
+            try:
+                obj = int(obj)
+            except ValueError as e:
+                pass
+        if fieldToType.get(obj, 'string') == 'double':
+            try:
+                obj = float(obj)
+            except ValueError as e:
+                pass
         return obj
 
     if isinstance(obj, list):
-        return [clean_data_obj(v) for v in obj]
+        return [cleanDataObj(v, silo) for v in obj]
 
-    return {cleanKey(k): clean_data_obj(v) for k, v in obj.items()}
+    return {cleanKey(k): cleanDataObj(v, silo) for k,v in obj.items()}
 
 
 def cleanKey(key):
@@ -223,7 +236,7 @@ def importJSON(read_obj, user, remote_user=None, password=None, silo_id=None, si
         if return_data:
             return data
 
-        save_data_to_silo(silo, data, read_obj)
+        saveDataToSilo(silo, data, read_obj)
         return messages.SUCCESS, "Data imported successfully.", str(silo_id)
     except Exception as e:
         if return_data:
@@ -364,7 +377,6 @@ def ona_parse_type_group(data, form_data, parent_name, silo, read):
         if field["type"] == "group":
             ona_parse_type_group(data, field['children'], parent_name + field['name']+"/", silo, read)
         else:
-            warnings = set()
             for entry in data:
                 if field['type'] == "repeat":
                     ona_parse_type_repeat(entry.get(parent_name + field['name'], []), field['children'], parent_name + field['name']+"/", silo, read)
@@ -372,11 +384,9 @@ def ona_parse_type_group(data, form_data, parent_name, silo, read):
                     try:
                         entry[field['label']] = entry.pop(parent_name + field['name'])
                     except KeyError as e:
-                        warnings.add("Keyerror for silo %s, %s" % (silo.pk, e))
+                        logger.warning(e)
                     except TypeError:
                         pass
-            for warn in warnings:
-                logger.warning(warn)
 
         # add an association between a column, label and its type to the
         # columnType database
@@ -397,7 +407,6 @@ def ona_parse_type_repeat(data, form_data, parent_name, silo, read):
     form_data -- the children of an ONA object of type repeat
     parent_name -- the name of the parent of the ona object
     """
-    warnings = set()
     for field in form_data:
         if field["type"] == "group":
             ona_parse_type_group(data, field['children'], parent_name + field['name']+"/", silo, read)
@@ -409,9 +418,8 @@ def ona_parse_type_repeat(data, form_data, parent_name, silo, read):
                     try:
                         entry[field['label']] = entry.pop(parent_name + field['name'])
                     except KeyError as e:
-                        warnings.add("Warn: ona_parse_type_repeat for silo %s, %s" % (silo.pk, e))
-    for warn in warnings:
-        logger.warning(warn)
+                        logger.warning(e)
+
 
 def saveOnaDataToSilo(silo, data, read, user):
     """
@@ -433,7 +441,7 @@ def saveOnaDataToSilo(silo, data, read, user):
     form_metadata = json.loads(response.content)
 
     # if this is true than the data isn't a form so proceed to
-    # save_data_to_silo normally
+    # saveDataToSilo normally
     if "detail" in form_metadata:
         return
     else:

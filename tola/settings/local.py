@@ -1,18 +1,33 @@
 from base import *
 
-from fabric.api import cd, env, run
-
-NOTIFICATION_SENDER = os.getenv('NOTIFICATION_SENDER')
+########## MANAGER CONFIGURATION
+# See: https://docs.djangoproject.com/en/dev/ref/settings/#admins
+ADMINS = (
+    ('admin', 'admin@example.org'),
+)
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
 ########## END MANAGER CONFIGURATION
+
 
 ########## DEBUG CONFIGURATION
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = True if os.getenv('TOLA_DEBUG') == 'True' else False
 
 ########## END DEBUG CONFIGURATION
+
+
+########## SECRET CONFIGURATION
+# See: https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
+# Note: REPLACE IT WITH YOUR OWN SECRET_KEY
+SECRET_KEY = r"xxxxxxxxxx"
+########## END SECRET CONFIGURATION
+
+########## EMAIL CONFIGURATION
+# See: https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+########## END EMAIL CONFIGURATION
 
 
 ########## DATABASE CONFIGURATION
@@ -42,7 +57,7 @@ except KeyError:
 
 # Hosts/domain names that are valid for this site
 if os.getenv('TOLA_HOSTNAME') is not None:
-    ALLOWED_HOSTS = os.environ['TOLA_HOSTNAME'].split(',')
+    ALLOWED_HOSTS = [os.getenv('TOLA_HOSTNAME')]
 
 USE_X_FORWARDED_HOST = True if os.getenv('TOLA_USE_X_FORWARDED_HOST') == 'True' else False
 
@@ -51,6 +66,10 @@ if os.getenv('TABLES_URL') is not None:
     GOOGLE_REDIRECT_URL = os.getenv('TABLES_URL') + '/oauth2callback/'
 else:
     GOOGLE_REDIRECT_URL = 'http://localhost:8000/oauth2callback/'
+#GOOGLE_STEP2_URI = 'http://tola.mercycorps.org/gwelcome'
+#GOOGLE_CLIENT_ID = 'xxxxxxx.apps.googleusercontent.com'
+#GOOGLE_CLIENT_SECRET = 'xxxxxxxxx'
+
 
 if os.getenv('GOOGLE_ANALYTICS') is not None:
     GOOGLE_ANALYTICS = os.getenv('GOOGLE_ANALYTICS')
@@ -70,20 +89,32 @@ CACHES = {
     }
 }
 ########## END CACHE CONFIGURATION
+#Update the logging file handler fo my local mac to be inside project folder
+#LOGGING['handlers']['file']['filename'] = "/projects/TolaTables/tolatables_app_error.log"
 
 
 ########## END CACHE CONFIGURATION
 
+#LDAP stuff
+LDAP_LOGIN = 'uid=xxx,ou=xxx,dc=xx,dc=xx,dc=xx'
+LDAP_SERVER = 'ldaps://xxxx.example.org' # ldap dev
+#LDAP_SERVER = 'ldaps://xxxx.example.org' # ldap prod
+LDAP_PASSWORD = 'xxxxxx' # ldap dev
+#LDAP_PASSWORD = 'xxxxxxx!' # ldap prod
+LDAP_USER_GROUP = 'xxxx'
+LDAP_ADMIN_GROUP = 'xxxx-xxx'
+#ERTB_ADMIN_URL = 'https://xxxx.example.org/xx-xx-dev/'
+
 try:
     template_dir = os.environ['TOLATABLES_TEMPLATE_DIR']
 except KeyError:
-    template_dir = "templates2"
+    template_dir ="templates2"
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [normpath(join(SITE_ROOT, 'templates2')), ],
-        # 'APP_DIRS': True,
+        #'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -119,8 +150,7 @@ TABLES_LOGIN_URL = TOLA_ACTIVITY_API_URL
 SOCIAL_AUTH_TOLA_KEY = os.getenv('SOCIAL_AUTH_TOLA_KEY')
 SOCIAL_AUTH_TOLA_SECRET = os.getenv('SOCIAL_AUTH_TOLA_SECRET')
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_BROKER_URL')
+from fabric.api import *
 
 # Hosts to deploy onto
 env.hosts = ['.toladata.io', '.tola.io']
@@ -128,21 +158,20 @@ env.hosts = ['.toladata.io', '.tola.io']
 # Where your project code lives on the server
 env.project_root = DJANGO_ROOT
 
-
 def deploy_static():
     with cd(env.project_root):
         run('./manage.py collectstatic -v0 --noinput')
 
-
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+
 GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
 
-ONEDRIVE_CLIENT_ID = os.getenv('ONEDRIVE_CLIENT_ID')
-ONEDRIVE_REDIRECT_URI = os.getenv('ONEDRIVE_REDIRECT_URI')
+# GOOGLE_ANALYTICS_PROPERTY_ID = 'A Google Analytics Property ID'
 
 # This allows for additional settings to be kept in a local file
 try:
     from local_secret import *
 except ImportError:
     pass
+

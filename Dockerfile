@@ -6,16 +6,10 @@ WORKDIR /code
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install nginx -y
 
-ADD docker/etc/nginx/tables.conf /etc/nginx/conf.d/tables.conf
+ADD docker/etc/nginx/nginx.conf /etc/nginx/nginx.conf
 
-RUN pip install -r requirements/production.txt
+RUN pip install -r requirements.txt
 
-EXPOSE 8080
+EXPOSE 8000
 
-# Collecting static files
-RUN ./collectstatic.sh
-
-ARG BRANCH=None
-ENV branch=${BRANCH}
-
-ENTRYPOINT ["/code/docker-entrypoint.sh"]
+CMD ["sh", "-c", "python manage.py migrate; nginx; python manage.py runserver --insecure 127.0.0.1:8888"]

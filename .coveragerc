@@ -1,9 +1,0 @@
-[run]
-omit =
-  manage.py
-  */tests/*
-  */test_*
-  */migrations/*
-  src/*
-  tola/settings/*
-  tola/wsgi.py
